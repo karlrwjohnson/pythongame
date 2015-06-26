@@ -1,52 +1,12 @@
-from numpy import array
 import pygame.locals
 import time
-
-def immutableArray(iterable):
-    a = array(iterable)
-    a.flags.writeable = False
-    return a
-
-class ScreenManager (object):
-    def __init__(self, size=(640,480), caption='Hello World!'):
-        self._size = None
-        self._caption = None
-        self.screen = None
-
-        self.size = size
-        self.caption = caption
-
-        pygame.display.set_caption(caption)
-
-    @property
-    def size(self):
-        return self._size
-
-    @size.setter
-    def size(self, size):
-        self._size = immutableArray(size)
-        self.screen = pygame.display.set_mode(size)
-
-    @property
-    def caption(self):
-        return self._caption
-
-    @caption.setter
-    def caption(self, caption):
-        self._caption = caption
-        pygame.display.set_caption(self.caption)
-
-    def clear(self):
-        self.screen.fill((0,0,0))
-
-    def flip(self):
-        pygame.display.flip()
 
 class Timer (object):
     def __init__(self):
         self._then = time.time()
+
     def elapsed(self):
-        now = time.time();
+        now = time.time()
         dt = now - self._then
         self._then = now
         return dt
