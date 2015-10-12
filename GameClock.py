@@ -7,17 +7,22 @@ class GameClock (Observable):
 
     # Fires when game time advances
     # :param dt: Amount of game time that elapsed
-    REAL_TIME_ADVANCE = EventType('GameClock.REAL_TIME_ADVANCE')
+    @EventType
+    def REAL_TIME_ADVANCE(dt):
+        """Game time has advanced
+        :param dt: Amount of game time that elapsed, in "seconds"
+        """
+        pass
 
-    # Fires when game time advances
-    # :param dt: Amount of game time that elapsed
-    GAME_TIME_ADVANCE = EventType('GameClock.GAME_TIME_ADVANCE')
+    @EventType
+    def GAME_TIME_ADVANCE(dt):
+        """Real time has passed
+        :param dt: Amount of real time that elapsed, in milliseconds
+        """
+        pass
 
     def __init__(self, framerate, multiplier=1.0):
-        super(GameClock, self).__init__(set([
-            GameClock.GAME_TIME_ADVANCE,
-            GameClock.REAL_TIME_ADVANCE,
-        ]))
+        super(GameClock, self).__init__()
 
         self.clock = Clock()
         self._multiplier = multiplier
@@ -43,11 +48,11 @@ class GameClock (Observable):
     def update(self):
         # pygame.time.Clock::tick() returns milliseconds
         real_dt = self.clock.tick(self.framerate)
-        self.notify(GameClock.REAL_TIME_ADVANCE, real_dt)
+        #self.notify(GameClock.REAL_TIME_ADVANCE, real_dt)
         game_dt = real_dt * self.multiplier / 1000.0
         self.notify(GameClock.GAME_TIME_ADVANCE, game_dt)
 
     def zero(self):
         """Drain any time off the internal clock without calling any updaters"""
         real_dt = self.clock.tick(self.framerate)
-        self.notify(GameClock.REAL_TIME_ADVANCE, real_dt)
+        #self.notify(GameClock.REAL_TIME_ADVANCE, real_dt)

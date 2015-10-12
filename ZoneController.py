@@ -12,28 +12,36 @@ from walking import \
 
 class ZoneController (Observable):
 
-    # Fires when a tile is clicked.
-    # :param tile: The tile that was clicked
-    CLICK_TILE = EventType('ZoneController.CLICK_TILE')
+    @EventType
+    def CLICK_TILE(tile):
+        """A tile was clicked
+        :param tile: The tile that was clicked
+        """
+        pass
 
-    # Fires when a tile is clicked.
-    # :param tile: The tile that was clicked
-    CLICK_ENTITY = EventType('ZoneController.CLICK_ENTITY')
+    @EventType
+    def CLICK_ENTITY(tile):
+        """An entity was clicked
+        :param tile: The tile that was clicked
+        """
+        pass
 
-    # Fires when a tile is clicked.
-    # :param tile: The tile that was hovered over
-    HOVER_TILE = EventType('ZoneController.HOVER_TILE')
+    @EventType
+    def HOVER_TILE(tile):
+        """The mouse is hovering over a tile
+        :param tile: The tile is being hovered over
+        """
+        pass
 
-    # Fires when game time advances.
-    # :param dt: Amount of time to advance by
-    TIME_ADVANCE = EventType('ZoneController.TIME_ADVANCE')
+    @EventType
+    def TIME_ADVANCE(dt):
+        """Game time has advanced
+        :param dt: Amount of time to advance by
+        """
+        pass
 
     def __init__(self, ui_controller, model, view):
-        super(ZoneController, self).__init__(set([
-            ZoneController.CLICK_TILE,
-            ZoneController.HOVER_TILE,
-            ZoneController.TIME_ADVANCE
-        ]))
+        super(ZoneController, self).__init__()
 
         self._ui_controller = None
         self.model = model

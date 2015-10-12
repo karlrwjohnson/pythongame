@@ -1,14 +1,71 @@
 from __future__ import print_function
 
+import types
+
 debug_events = False
 
 class EventType (object):
-    """Wrapper class to make event_type singletons, which wouldn't be confused """
-    def __init__(self, name):
-        self.name = name
+    """
+    Usage::
+        class MyClass (Observable):
+            @EventType
+            def MY_EVENT(param1, param2):
+                pass
+
+            def __init__(self, arg1, arg2):
+                super(MyClass, self).__init__()
+
+            def something_that_fires_an_event():
+                param1, param2 = something()
+                self.notify(MyClass.MY_EVENT, param1, param2)
+
+    It is not recommended that the prototype function uses default parameters.
+    There's no way to support them on Pythons other than CPython.
+    """
+    def __init__(self, prototype_function):
+        self.prototype_function = prototype_function
+
+    def __str__(self):
+        return self.prototype_function.func_name
 
     def __repr__(self):
-        return self.name
+        return 'EventType({})'.format(self.prototype_function.func_name)
+
+    @property
+    def prototype_argcount(self):
+        return self.prototype_function.func_code.co_argcount
+
+    @property
+    def prototype_has_args(self):
+        return bool(self.prototype_function.func_code.co_flags & 0b100)
+
+    @property
+    def prototype_has_kwargs(self):
+        return bool(self.prototype_function.func_code.co_flags & 0b1000)
+
+    def matches_signature(self, function):
+        # Compare argument lengths for now
+
+        argcount = function.func_code.co_argcount - (1 if isinstance(function, types.MethodType) else 0)
+        has_args = bool(function.func_code.co_flags & 0b100)
+        has_kwargs = bool(function.func_code.co_flags & 0b1000)
+
+        # Conditions where `function` could not be callable in `prototype_function`'s place:
+        # 1. `function` has fewer arguments than `prototype_function` and lacks an *args parameter
+        # 2. `function` has more arguments than `prototype_function`, not counting `function`'s default parameters
+        # 3. `prototype_function` has an *args parameter but `function` doesn't
+        # 4. `prototype_function` has a **kwargs parameter, but `function` doesn't
+        #     - In theory, you might be safe if `function` always implements the arguments that are passed through
+        #       **kwargs, but that's not type safety. Don't define kwargs on the interface if you can't use them in
+        #       the implementation!
+
+        # Without using the inspect module (which only works on CPython, not PyPy or other verions), I cannot determine:
+        # a. Any of `prototype_function`'s default parameters, which could be used on `function`
+        # b. Whether any of `function`'s parameters have defaults, which would allow it to safely have more parameters than `prototype_function`
+        #     - This makes check #2 impossible
+
+        return (has_args or (not self.prototype_has_args and self.prototype_argcount <= argcount)) \
+            and (has_kwargs or not self.prototype_has_kwargs)
 
 class Observable (object):
     """Data structure useful for implementing the Observable pattern"""
@@ -26,13 +83,25 @@ class Observable (object):
             """Removes the callback from its original Observable"""
             self._manager.unobserve(self._event_type, self)
 
-    def __init__(self, supported_event_types=None):
+    def __init__(self, supported_event_types=set(), scan_for_event_types=True):
         """
-        :param supported_event_types: Optional list of permitted `event_type`s
+        :param supported_event_types: Optional list of permitted `EventType`s
+        :param scan_for_event_types: Search through the class's attributes for
+                                     EventType objects
         :return:
         """
         self._observer_handles = {}
-        self._supported_event_types = supported_event_types
+
+        self._supported_event_types = set(supported_event_types)
+
+        if scan_for_event_types:
+            self._supported_event_types |= set([
+                attr_value
+                for clazz in [type(self)]
+                for attr_name in dir(clazz)
+                for attr_value in [getattr(clazz, attr_name)]
+                if isinstance(attr_value, EventType)
+            ])
 
     def observe(self, event_type, callback, limit=float('inf')):
         """Registers a callback
@@ -44,8 +113,13 @@ class Observable (object):
         :return: A Handle which may be used to cancel()'ed to remove
                  it from the Observable
         """
-        if self._supported_event_types and not(event_type in self._supported_event_types):
+        if event_type not in self._supported_event_types:
             raise KeyError('Event type {} is not supported by this Observable'.format(repr(event_type)))
+        elif 'matches_signature' in dir(event_type) and not event_type.matches_signature(callback):
+            raise TypeError('Callback {} ({} args) cannot be called by event type {} ({} args)'.format(
+                repr(callback), callback.func_code.co_argcount,
+                repr(event_type), event_type.prototype_argcount,
+            ))
         else:
             if not(event_type in self._observer_handles):
                 self._observer_handles[event_type] = []

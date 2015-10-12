@@ -20,8 +20,11 @@ class WalkToAdjacentTileAction (Observable):
     ownership of the old tile and takes ownership of the new.
     """
 
-    # :param success: Whether the character now occupies the new tile
-    DONE = EventType('WalkToAdjacentTileAction.DONE')
+    @EventType
+    def DONE(success):
+        """The action has completed
+        :param success: Whether the character now occupies the new tile
+        """
 
     def __init__(self,
                  mob,
@@ -37,9 +40,7 @@ class WalkToAdjacentTileAction (Observable):
         :param cooldown_time:        An amount of game time
         :return:
         """
-        super(WalkToAdjacentTileAction, self).__init__(set([
-            WalkToAdjacentTileAction.DONE
-        ]))
+        super(WalkToAdjacentTileAction, self).__init__()
 
         self.mob = mob
         self.destination_tile = destination_tile
@@ -100,8 +101,11 @@ class WalkDirective (Observable):
     or walking a set path (as in the case of PatrolDirective)
     """
 
-    # :param success: Whether the mob reached its destination
-    DONE = EventType('WalkDirective.DONE')
+    @EventType
+    def DONE(success):
+        """The directive has completed
+        :param success: Whether the mob reached its destination
+        """
 
     def __init__(self, mob, timed_event_dispatcher):
         super(WalkDirective, self).__init__(set([

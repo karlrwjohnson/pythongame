@@ -5,12 +5,13 @@ from util import immutableArray
 
 class UIView (Observable):
 
-    RENDER_ZONE = EventType('UIView.RENDER_ZONE')
+    @EventType
+    def RENDER_ZONE():
+        """The ZoneView should render the Zone"""
+        pass
 
     def __init__(self, size, caption):
-        super(UIView, self).__init__(set([
-            UIView.RENDER_ZONE
-        ]))
+        super(UIView, self).__init__()
 
         pygame.init()
 

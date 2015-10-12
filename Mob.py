@@ -5,23 +5,32 @@ from Observable import Observable, \
 
 class Mob (Observable):
 
-    # :param mob: The mob that moved (i.e. self)
-    # :param old_position: The previous position
-    POSITION_CHANGE = EventType('Mob.POSITION_CHANGE')
+    @EventType
+    def POSITION_CHANGE(mob, old_position):
+        """Mob moved
+        :param mob: The mob that moved (i.e. self)
+        :param old_position: The previous position
+        """
+        pass
 
-    # :param mob: The mob that moved (i.e. self)
-    # :param old_position: The previous position
-    WALK_DIRECTIVE_CHANGE = EventType('Mob.WALK_DIRECTIVE_CHANGE')
+    @EventType
+    def WALK_DIRECTIVE_CHANGE(mob, old_position):
+        """Mob's walk_directive changed
+        :param mob: The mob that moved (i.e. self)
+        :param old_position: The previous position
+        """
+        pass
 
-    # :param mob: The mob that moved (i.e. self)
-    # :param old_position: The previous position
-    WALK_ANIMATION_CHANGE = EventType('Mob.WALK_ANIMATION_CHANGE')
+    @EventType
+    def WALK_ANIMATION_CHANGE(mob, old_position):
+        """Mob's walk_animation changed
+        :param mob: The mob that moved (i.e. self)
+        :param old_position: The previous position
+        """
+        pass
 
     def __init__(self, zone, position, sprite, speed=5.0):
-        super(Mob, self).__init__(set([
-            Mob.POSITION_CHANGE,
-            Mob.WALK_DIRECTIVE_CHANGE,
-        ]))
+        super(Mob, self).__init__()
 
         self._position = None
         self._walk_directive = None

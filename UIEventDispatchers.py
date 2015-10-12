@@ -32,7 +32,7 @@ class PygameEventDispatcher (Observable):
             VIDEOEXPOSE      none
             USEREVENT        code
         """
-        super(PygameEventDispatcher, self).__init__(set([
+        super(PygameEventDispatcher, self).__init__([
             pygame.locals.QUIT,
             pygame.locals.ACTIVEEVENT,
             pygame.locals.KEYDOWN,
@@ -48,7 +48,7 @@ class PygameEventDispatcher (Observable):
             pygame.locals.VIDEORESIZE,
             pygame.locals.VIDEOEXPOSE,
             pygame.locals.USEREVENT,
-        ]))
+        ])
 
     def handleEvents(self, events):
         for event in events:
@@ -59,13 +59,13 @@ class KeyPressEventDispatcher (Observable):
 
     # Event types are tuples of the key direction and the key code.
     # :param event: Pygame event
-    EVENT_TYPES = set([
+    EVENT_TYPES = [
         (pygame.locals.KEYDOWN, key_code)
         for key_code in PYGAME_KEY_CODES
     ] + [
         (pygame.locals.KEYUP, key_code)
         for key_code in PYGAME_KEY_CODES
-    ])
+    ]
 
     def __init__(self, pygame_event_dispatcher=None):
         super(KeyPressEventDispatcher, self).\
@@ -143,23 +143,27 @@ class KeyHoldEventDispatcher (Observable):
 class MouseEventDispatcher(Observable):
     """Processes pygame mouse events"""
 
-    # Fired when the mouse is clicked
-    # :param pos:    A tuple of the (x,y) location of the mouse
-    # :param button: Integer corresponding to the button clicked.
-    #                Primary = 1, Secondary = 2, Middle = 3, etc.
-    CLICK = EventType('MouseEventDispatcher.CLICK')
+    @EventType
+    def CLICK(pos, button):
+        """Fired when the mouse is clicked
+        :param pos:    A tuple of the (x,y) location of the mouse
+        :param button: Integer corresponding to the button clicked.
+                       Primary = 1, Secondary = 2, Middle = 3, etc.
+        """
+        pass
 
-    # Fired when the mouse is clicked
-    # :param pos:     A tuple of the (x,y) location of the mouse
-    # :param rel:     A tuple of the (x,y) location of the mouse relative to the previous update
-    # :param buttons: A 3-tuple of which button is being pressed.
-    MOVE = EventType('MouseEventDispatcher.MOVE')
+    @EventType
+    def MOVE(pos, rel, buttons):
+        """Fired when the mouse is clicked
+        :param pos:     A tuple of the (x,y) location of the mouse
+        :param rel:     A tuple of the (x,y) location of the mouse
+                        relative to the previous update
+        :param buttons: A 3-tuple of which button is being pressed.
+        """
+        pass
 
     def __init__(self, pygame_event_dispatcher=None):
-        super(MouseEventDispatcher, self).__init__(set([
-            MouseEventDispatcher.CLICK,
-            MouseEventDispatcher.MOVE,
-        ]))
+        super(MouseEventDispatcher, self).__init__()
 
         self._pygame_event_dispatcher = None
         self._pygame_event_dispatcher_handles = []

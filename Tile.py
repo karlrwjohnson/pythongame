@@ -3,22 +3,25 @@ from Observable import Observable, EventType
 class Tile (Observable):
     """A square region of map which can hold one occupant."""
 
-    # Fired when the tile becomes occupied.
-    # Callback signature: lambda tile: Tile = self, occupant: Mob
-    OCCUPY = EventType('Tile.OCCUPY')
+    @EventType
+    def OCCUPY(tile, occupant):
+        """The tile became occupied
+        :param tile: The tile in question, i.e. Self
+        :param occupant: The mob that now occupies the tile
+        """
 
-    # Fired when the tile becomes unoccupied.
-    # Callback signature: lambda tile: Tile = self, occupant: Mob
-    VACATE = EventType('Tile.VACATE')
+    @EventType
+    def VACATE(tile, occupant):
+        """The tile became unoccupied
+        :param tile: The tile in question, i.e. Self
+        :param occupant: The mob that vacated the tile
+        """
 
     class OwnershipException (Exception):
         pass
 
     def __init__(self, zone, coords, sprite=None):
-        super(Tile, self).__init__(set([
-            Tile.OCCUPY,
-            Tile.VACATE,
-        ]))
+        super(Tile, self).__init__()
 
         self.zone = zone
         self._coords = tuple(coords)

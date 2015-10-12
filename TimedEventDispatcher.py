@@ -62,15 +62,15 @@ class TimedEventDispatcher (object):
         while len(self._event_queue) > 0 and \
                 self._event_queue[0]._remaining <= dt:
             next_event = heapq.heappop(self._event_queue)
-            print "processing {}".format(repr(next_event))
 
             # Advance the game clock by the amount of time left on the next event
             dt -= next_event._remaining
             for event in self._event_queue:
-                print "aging by {}: {}".format(dt, repr(event))
                 event._remaining -= dt
 
             next_event._remaining = 0
             next_event._on_complete()
 
-            print "event queue now has {} items".format(len(self._event_queue))
+        # Age everything left by the remaining time
+        for event in self._event_queue:
+            event._remaining -= dt

@@ -16,28 +16,38 @@ class UIController (Observable):
     Gets UI and Clock events from pygame and interprets them as game events
     """
 
-    # :param coord: x/y tuple of the mouse's screen location
-    PRIMARY_CLICK = EventType('UIController.PRIMARY_CLICK')
+    @EventType
+    def PRIMARY_CLICK(coord):
+        """Mouse has clicked on the zone
+        :param coord: x/y tuple of the mouse's screen location
+        """
+        pass
 
-    # :param coord: x/y tuple of the mouse's screen location
-    SECONDARY_CLICK = EventType('UIController.SECONDARY_CLICK')
+    @EventType
+    def SECONDARY_CLICK(coord):
+        """Mouse has alternate-clicked on the zone
+        :param coord: x/y tuple of the mouse's screen location
+        """
+        pass
 
-    # :param coord: x/y tuple of the mouse's screen location
-    ZONE_HOVER = EventType('UIController.ZONE_HOVER')
+    @EventType
+    def ZONE_HOVER(coord):
+        """Mouse is hovering over the zone
+        :param coord: x/y tuple of the mouse's screen location
+        """
+        pass
 
-    # User tells character to move
-    # :param direction: x/y tuple of direction
-    MOVE = EventType('UIController.CHARACTER_MOVE')
+    @EventType
+    def MOVE(direction):
+        """The player character should be moved
+        :param direction: x/y tuple of direction to move
+        """
+        pass
 
     def __init__(self,
                  view,
                  framerate):
-        super(UIController, self).__init__(set([
-            UIController.PRIMARY_CLICK,
-            UIController.SECONDARY_CLICK,
-            UIController.ZONE_HOVER,
-            UIController.MOVE
-        ]))
+        super(UIController, self).__init__()
 
         self.view = view
 
