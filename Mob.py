@@ -62,7 +62,6 @@ class Mob (Observable):
             self.zone.tiles[self._position].occupant = None
 
         if position is None:
-            raise RuntimeError("what the flip??")
             self._position = None
         else:
             self._position = numpy.array(position)

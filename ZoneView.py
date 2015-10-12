@@ -1,6 +1,7 @@
 import numpy
 import pygame
 
+from MobView import MobView
 from UIView import UIView
 
 class ZoneView (object):
@@ -68,8 +69,10 @@ class ZoneView (object):
     def _on_render(self):
         for tile in self.model.tiles:
             self.blit_world_sprite(tile.sprite, tile.coords)
+
+        mob_view = MobView()
         for mob in self.model.mobs:
-            self.blit_world_sprite(mob.sprite, mob.position)
+            mob_view.render(self, mob)
 
         if self.mouse_pos is not None:
             self.blit_world_sprite(self.tile_hover_sprite, self.screen_2_tile_coord(self.mouse_pos))

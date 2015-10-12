@@ -74,7 +74,7 @@ class UIController (Observable):
 
         notify_walk = lambda dx, dy:\
             lambda *args, **kwargs:\
-                self.notify(UIController.MOVE, logging_passthru((dx, dy), 'dx,dy = {}'))
+                self.notify(UIController.MOVE, (dx, dy))
         self.keyHoldEventDispatcher.observe(pygame.locals.K_UP, notify_walk(0, -1))
         self.keyHoldEventDispatcher.observe(pygame.locals.K_DOWN, notify_walk(0, 1))
         self.keyHoldEventDispatcher.observe(pygame.locals.K_LEFT, notify_walk(-1, 0))

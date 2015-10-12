@@ -4,29 +4,47 @@ class TimedEventDispatcher (object):
     class TimedEvent:
         """Utility class storing event callbacks for TimedEventDispatcher"""
 
-        def __init__(self, delay, on_complete):
-            self._delay = delay
-            self._on_complete = on_complete
-            self._remaining = delay
+        def __init__(self, period, on_complete):
+            self._period = period
+            self._time_remaining = period
+            self.on_complete = on_complete
 
         def __cmp__(self, other):
             """Compares TimedEvents by their time remaining"""
-            # noinspection PyProtectedMember
-            return cmp(self._remaining, other._remaining)
+            return cmp(self.time_remaining, other.time_remaining)
+
+        def __repr__(self):
+            return "TimedEventDispatcher.TimedEvent(period={}, _time_remaining={}, on_complete={})".format(
+                self._period,
+                self._time_remaining,
+                self.on_complete
+            )
 
         def cancel(self):
             """Prevent the event from executing"""
             # We simply overwrite the callback with a no-op because mutating
             # the TimedEventDispatcher's event queue is hard, and events are
             # cleared out eventually.
-            self._on_complete = lambda *args: None
+            self.on_complete = lambda *args: None
 
-        def __repr__(self):
-            return "TimedEventDispatcher.TimedEvent(delay={}, _remaining={}, on_complete={})".format(
-                self._delay,
-                self._remaining,
-                self._on_complete
-            )
+        def age(self, time):
+            assert time <= self._time_remaining, \
+                'Tried to age a TimedEvent by {}, but it only had {} remaining'.format(
+                    time, self._time_remaining
+                )
+            self._time_remaining -= time
+
+        @property
+        def time_remaining(self):
+            return self._time_remaining
+
+        @property
+        def period(self):
+            return self._period
+
+        @property
+        def progress(self):
+            return 1.0 - float(self.time_remaining) / self.period
 
     def __init__(self):
         # The event queue is a minimum heap, giving O(1) access to the next
@@ -44,33 +62,30 @@ class TimedEventDispatcher (object):
         """
         assert delay > 0, 'Delay must be a positive number. Got {}'.format(repr(delay))
         handle = TimedEventDispatcher.TimedEvent(delay, callback)
-        print "adding {}".format(repr(handle))
         heapq.heappush(self._event_queue, handle)
-        print "event queue now has {} items".format(len(self._event_queue))
         return handle
 
-    # noinspection PyProtectedMember
-    def advanceBy(self, dt):
+    def advanceBy(self, interval):
         """Advance game time by an interval of time, firing events as they become due
           and aging the rest.
 
-        :param dt: Amount of time to advance by
+        :param interval: Amount of time to advance by
         :return: None
         """
 
         # Pop and fire events in the order they come due
         while len(self._event_queue) > 0 and \
-                self._event_queue[0]._remaining <= dt:
+                self._event_queue[0].time_remaining <= interval:
             next_event = heapq.heappop(self._event_queue)
 
             # Advance the game clock by the amount of time left on the next event
-            dt -= next_event._remaining
+            interval -= next_event.time_remaining
             for event in self._event_queue:
-                event._remaining -= dt
+                event.age(next_event.time_remaining)
 
-            next_event._remaining = 0
-            next_event._on_complete()
+            next_event.age(next_event.time_remaining)
+            next_event.on_complete()
 
         # Age everything left by the remaining time
         for event in self._event_queue:
-            event._remaining -= dt
+            event.age(interval)

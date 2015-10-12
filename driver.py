@@ -25,8 +25,8 @@ from ZoneView import ZoneView
 SCREEN_SIZE = (640, 480)
 WINDOW_CAPTION = 'Game Title Here'
 #FRAMERATE = 60
-FRAMERATE = 20
-Observable.debug_events = True
+FRAMERATE =60
+#Observable.debug_events = True
 
 # Wiring
 

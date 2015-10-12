@@ -44,6 +44,8 @@ class WalkToAdjacentTileAction (Observable):
 
         self.mob = mob
         self.destination_tile = destination_tile
+        self.source_coord = mob.position
+        self.dest_coord = destination_tile.coords
         self.timedEventDispatcher = timedEventDispatcher
 
         # Event references
@@ -59,8 +61,25 @@ class WalkToAdjacentTileAction (Observable):
             # Wake me up when September ends -- I mean, when the tile is empty
             self._tileEvent = self.destination_tile.observe(Tile.VACATE, self.start, limit=1)
         else:
+            self.mob.walk_animation = self
             self._timerEvent = self.timedEventDispatcher.add(self.warmup_time, self._on_warmup_done)
             self._tileEvent = self.destination_tile.observe(Tile.OCCUPY, self._on_tile_stolen, limit=1)
+
+    def cancel(self):
+        """Abort the current walk action"""
+        self._on_cancel()
+
+    @property
+    def progress(self):
+        """Reports the progress of the action as a number between 0 and 1.0"""
+        if self._timerEvent.on_complete == self._on_warmup_done:
+            # Warm-up phase
+            return self._timerEvent.progress / 2
+        elif self._timerEvent.on_complete == self._on_complete:
+            # Cooldown phase
+            return self._timerEvent.progress / 2 + 0.5
+        else:
+            assert False, "Timer event callback doesn't match either expected function"
 
     def _on_warmup_done(self):
         """Callback for the warmup event's completion"""
@@ -87,9 +106,12 @@ class WalkToAdjacentTileAction (Observable):
         if self._tileEvent is not None:
             self._tileEvent.cancel()
 
+        self.mob.walk_animation = None
+
         self.notify(WalkToAdjacentTileAction.DONE, False)
 
     def _on_complete(self):
+        self.mob.walk_animation = None
         self.notify(WalkToAdjacentTileAction.DONE, True)
 
 class WalkDirective (Observable):
@@ -114,6 +136,7 @@ class WalkDirective (Observable):
 
         self.mob = mob
         self.timed_event_dispatcher = timed_event_dispatcher
+        self.action = None
 
         # Claim the mob for the duration of the directive
         self.mob.walk_directive = self
@@ -135,11 +158,16 @@ class WalkDirective (Observable):
             destination_tile=destination,
             timedEventDispatcher=self.timed_event_dispatcher,
             warmup_time=warmup_time,
-            cooldown_time=cooldown_time)
+            cooldown_time=cooldown_time
+        )
         action.observe(WalkToAdjacentTileAction.DONE, on_walk_done, limit=1)
         action.start()
 
+    def cancel(self):
+        self.action.cancel()
+
     def _on_done(self, success):
+        # Release the claim on the mob
         if self.mob.walk_directive == self:
             self.mob.walk_directive = None
 
