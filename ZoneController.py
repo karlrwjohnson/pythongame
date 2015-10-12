@@ -17,28 +17,24 @@ class ZoneController (Observable):
         """A tile was clicked
         :param tile: The tile that was clicked
         """
-        pass
 
     @EventType
     def CLICK_ENTITY(tile):
         """An entity was clicked
         :param tile: The tile that was clicked
         """
-        pass
 
     @EventType
     def HOVER_TILE(tile):
         """The mouse is hovering over a tile
         :param tile: The tile is being hovered over
         """
-        pass
 
     @EventType
     def TIME_ADVANCE(dt):
         """Game time has advanced
         :param dt: Amount of time to advance by
         """
-        pass
 
     def __init__(self, ui_controller, model, view):
         super(ZoneController, self).__init__()

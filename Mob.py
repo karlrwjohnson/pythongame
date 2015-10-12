@@ -11,7 +11,6 @@ class Mob (Observable):
         :param mob: The mob that moved (i.e. self)
         :param old_position: The previous position
         """
-        pass
 
     @EventType
     def WALK_DIRECTIVE_CHANGE(mob, old_position):
@@ -19,7 +18,6 @@ class Mob (Observable):
         :param mob: The mob that moved (i.e. self)
         :param old_position: The previous position
         """
-        pass
 
     @EventType
     def WALK_ANIMATION_CHANGE(mob, old_position):
@@ -27,7 +25,6 @@ class Mob (Observable):
         :param mob: The mob that moved (i.e. self)
         :param old_position: The previous position
         """
-        pass
 
     def __init__(self, zone, position, sprite, speed=5.0):
         super(Mob, self).__init__()

@@ -8,7 +8,6 @@ class UIView (Observable):
     @EventType
     def RENDER_ZONE():
         """The ZoneView should render the Zone"""
-        pass
 
     def __init__(self, size, caption):
         super(UIView, self).__init__()

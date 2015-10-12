@@ -21,28 +21,24 @@ class UIController (Observable):
         """Mouse has clicked on the zone
         :param coord: x/y tuple of the mouse's screen location
         """
-        pass
 
     @EventType
     def SECONDARY_CLICK(coord):
         """Mouse has alternate-clicked on the zone
         :param coord: x/y tuple of the mouse's screen location
         """
-        pass
 
     @EventType
     def ZONE_HOVER(coord):
         """Mouse is hovering over the zone
         :param coord: x/y tuple of the mouse's screen location
         """
-        pass
 
     @EventType
     def MOVE(direction):
         """The player character should be moved
         :param direction: x/y tuple of direction to move
         """
-        pass
 
     def __init__(self,
                  view,

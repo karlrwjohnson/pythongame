@@ -150,7 +150,6 @@ class MouseEventDispatcher(Observable):
         :param button: Integer corresponding to the button clicked.
                        Primary = 1, Secondary = 2, Middle = 3, etc.
         """
-        pass
 
     @EventType
     def MOVE(pos, rel, buttons):
@@ -160,7 +159,6 @@ class MouseEventDispatcher(Observable):
                         relative to the previous update
         :param buttons: A 3-tuple of which button is being pressed.
         """
-        pass
 
     def __init__(self, pygame_event_dispatcher=None):
         super(MouseEventDispatcher, self).__init__()

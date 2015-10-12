@@ -12,14 +12,12 @@ class GameClock (Observable):
         """Game time has advanced
         :param dt: Amount of game time that elapsed, in "seconds"
         """
-        pass
 
     @EventType
     def GAME_TIME_ADVANCE(dt):
         """Real time has passed
         :param dt: Amount of real time that elapsed, in milliseconds
         """
-        pass
 
     def __init__(self, framerate, multiplier=1.0):
         super(GameClock, self).__init__()

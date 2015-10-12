@@ -10,28 +10,36 @@ Architecture paradigms:
 
 from __future__ import print_function
 
+import argparse
 import pygame
 
 import Observable
 
 from UIController import UIController
 from UIView import UIView
+from util import resolution_pair
 from Zone import Zone
 from ZoneController import ZoneController
 from ZoneView import ZoneView
 
+PARSER = argparse.ArgumentParser()
+PARSER.add_argument('-s', '--screen_size', type=resolution_pair, default='640x480',
+                    help='Window dimensions')
+PARSER.add_argument('-f', '--framerate', type=int, default=60,
+                    help='Limit rendering passes per second')
+PARSER.add_argument('-d', '--debug', type=bool, default=False,
+                    help='Log message broadcasts for debugging')
+ARGS = PARSER.parse_args()
+
 # Settings
 
-SCREEN_SIZE = (640, 480)
 WINDOW_CAPTION = 'Game Title Here'
-#FRAMERATE = 60
-FRAMERATE =60
-#Observable.debug_events = True
+Observable.debug_events = ARGS.debug
 
 # Wiring
 
-ui_view = UIView(size=SCREEN_SIZE, caption=WINDOW_CAPTION)
-ui_controller = UIController(view=ui_view, framerate=FRAMERATE)
+ui_view = UIView(size=ARGS.screen_size, caption=WINDOW_CAPTION)
+ui_controller = UIController(view=ui_view, framerate=ARGS.framerate)
 
 zone = Zone(dimensions=(20,15))
 zone_view = ZoneView(model=zone, ui_view=ui_view)
