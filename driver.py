@@ -15,6 +15,7 @@ import pygame
 
 import Observable
 
+from Mob import Mob
 from UIController import UIController
 from UIView import UIView
 from util import resolution_pair
@@ -36,21 +37,31 @@ ARGS = PARSER.parse_args()
 WINDOW_CAPTION = 'Game Title Here'
 Observable.debug_events = ARGS.debug
 
-# Wiring
-
-ui_view = UIView(size=ARGS.screen_size, caption=WINDOW_CAPTION)
-ui_controller = UIController(view=ui_view, framerate=ARGS.framerate)
-
+# Model
 zone = Zone(dimensions=(20,15))
-zone_view = ZoneView(model=zone, ui_view=ui_view)
-zone_controller = ZoneController(model=zone, view=zone_view, ui_controller=ui_controller)
 
-# Manually create level
+grass_sprite = pygame.image.load('img/tile.png')
+for tile in zone.tiles:
+    tile.sprite = grass_sprite
 
-# (done in ZoneController while I figure out how it's supposed to happen)
+stick_fig_sprite = pygame.image.load('img/stickfig.png')
+pc = Mob(tile=zone.tiles[(4, 2)], sprite=stick_fig_sprite)
+
+guard = Mob(tile=zone.tiles[(5, 2)], sprite=stick_fig_sprite)
+guard.patrol([
+    zone.tiles[coord]
+    for coord in [(5,5), (15,5), (10,10), (5,10)]
+])
+
+# View
+ui_view = UIView(size=ARGS.screen_size, caption=WINDOW_CAPTION)
+zone_view = ZoneView(zone=zone, ui_view=ui_view)
+
+# Controller
+ui_controller = UIController(view=ui_view, framerate=ARGS.framerate)
+zone_controller = ZoneController(zone=zone, view=zone_view, ui_controller=ui_controller, pc=pc)
 
 # Run
-
 ui_controller.run()
 
 # End

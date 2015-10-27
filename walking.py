@@ -1,10 +1,30 @@
+# -*- coding: utf-8 -*-
+
 import itertools
-import numpy
 
 from Observable import Observable, \
     EventType
 from Tile import Tile
-from util import removeAdjacentDuplicates
+from util import *
+
+class ActionState(object):
+    def __init__(self, name, ordinal, is_cancelable):
+        self.name = name
+        self.ordinal = ordinal
+        self.is_cancelable = is_cancelable
+    def __cmp__(self, other):
+        if isinstance(other, ActionState):
+            return cmp(self.ordinal, other.ordinal)
+        else:
+            raise TypeError()
+    def __repr__(self):
+        return 'ActionState.{}'.format(self.name)
+
+ActionState.NOT_STARTED = ActionState('NOT_STARTED', 0, True)
+ActionState.WARM_UP = ActionState('WARM_UP', 1, True)
+ActionState.COOL_DOWN = ActionState('COOL_DOWN', 2, False)
+ActionState.CANCELED = ActionState('CANCELED', 3, True)
+ActionState.COMPLETED = ActionState('COMPLETED', 4, False)
 
 class WalkToAdjacentTileAction (Observable):
     """
@@ -29,195 +49,202 @@ class WalkToAdjacentTileAction (Observable):
     def __init__(self,
                  mob,
                  destination_tile,
-                 timedEventDispatcher,
-                 warmup_time,
-                 cooldown_time):
+                 timed_event_dispatcher):
         """
         :param mob:                  The mob who is moving
         :param destination_tile:     The Tile the mob is moving to
-        :param timedEventDispatcher: To register the callbacks
-        :param warmup_time:          An amount of game time
-        :param cooldown_time:        An amount of game time
+        :param timed_event_dispatcher: To register the callbacks
         :return:
         """
         super(WalkToAdjacentTileAction, self).__init__()
 
         self.mob = mob
         self.destination_tile = destination_tile
-        self.source_coord = mob.position
+        self.source_coord = mob.tile.coords
         self.dest_coord = destination_tile.coords
-        self.timedEventDispatcher = timedEventDispatcher
+        self.timed_event_dispatcher = timed_event_dispatcher
+
+        self.warmup_time = \
+        self.cooldown_time = \
+            distance(self.source_coord, self.dest_coord) / (2.0 * self.mob.speed)
+
+        self.state = ActionState.NOT_STARTED
 
         # Event references
-        self._timerEvent = None
-        self._tileEvent = None
+        self._timer_event = None
+        self._tile_event = None
 
-        self.warmup_time = warmup_time
-        self.cooldown_time = cooldown_time
-
-    def start(self, *args):
-        """Initiate the action as soon as the destination tile becomes vacant."""
-        if self.destination_tile.occupant:
-            # Wake me up when September ends -- I mean, when the tile is empty
-            self._tileEvent = self.destination_tile.observe(Tile.VACATE, self.start, limit=1)
+        if self.destination_tile.occupant is None:
+            self._on_tile_vacate()
         else:
-            self.mob.walk_animation = self
-            self._timerEvent = self.timedEventDispatcher.add(self.warmup_time, self._on_warmup_done)
-            self._tileEvent = self.destination_tile.observe(Tile.OCCUPY, self._on_tile_stolen, limit=1)
+            self.tile_event = self.destination_tile.observe(Tile.VACATE, self._on_tile_vacate, limit=1)
 
     def cancel(self):
         """Abort the current walk action"""
-        self._on_cancel()
+        if self.state == ActionState.CANCELED:
+            # Cancellation is idempotent
+            pass
+        elif self.state.is_cancelable:
+            self._cancel()
+        else:
+            raise RuntimeError('Too late to cancel the action')
+
+    _progress_by_state = {
+        ActionState.NOT_STARTED: lambda self: 0.0,
+        ActionState.CANCELED: lambda self: 0.0,
+        ActionState.WARM_UP: lambda self: self.timer_event.progress / 2.0,
+        ActionState.COOL_DOWN: lambda self: self.timer_event.progress / 2.0 + 0.5,
+        ActionState.COMPLETED: lambda self: 1.0,
+    }
 
     @property
     def progress(self):
-        """Reports the progress of the action as a number between 0 and 1.0"""
-        if self._timerEvent.on_complete == self._on_warmup_done:
-            # Warm-up phase
-            return self._timerEvent.progress / 2
-        elif self._timerEvent.on_complete == self._on_complete:
-            # Cooldown phase
-            return self._timerEvent.progress / 2 + 0.5
-        else:
-            assert False, "Timer event callback doesn't match either expected function"
+        """How close the action is to completion as a number increasing from 0 to 1.0"""
+        return WalkToAdjacentTileAction._progress_by_state[self.state](self)
+
+    @property
+    def current_position(self):
+    #    print "{!r} {!r} {!r} {!r}".format(self.source_coord, self.dest_coord, self.progress, \
+    #        vec_interpolate(self.source_coord, self.dest_coord, self.progress) )
+        return vec_interpolate(self.source_coord, self.dest_coord, self.progress)
+
+    @property
+    def timer_event(self):
+        return self._timer_event
+
+    @timer_event.setter
+    def timer_event(self, timer_event):
+        if self._timer_event is not None:
+            self._timer_event.cancel()
+
+        self._timer_event = timer_event
+
+    @property
+    def tile_event(self):
+        return self._tile_event
+
+    @tile_event.setter
+    def tile_event(self, tile_event):
+        if self._tile_event is not None:
+            self._tile_event.cancel()
+
+        self._tile_event = tile_event
+
+    #def _on_mob_speed_change(self, mob):
+        # I need to change the completion time of an in-progress event!
+        # I should probably just cancel the current one and re-issue it.
+
+    def _on_tile_vacate(self, *args):
+        self.timer_event = self.timed_event_dispatcher.add(self.warmup_time, self._on_warmup_done)
+        self.tile_event = self.destination_tile.observe(Tile.OCCUPY, self._on_tile_stolen, limit=1)
+        #self._mobSpeedEvent = self.mob.observe(Mob.SPEED_CHANGE, self._on_mob_speed_change)
+        self.state = ActionState.WARM_UP
 
     def _on_warmup_done(self):
         """Callback for the warmup event's completion"""
         assert self.destination_tile.occupant is None, \
             "Target tile is occupied, but I didn't get a Tile.OCCUPY event"
 
+        # Set timer for cooldown
+        self._timer_event = self.timed_event_dispatcher.add(self.cooldown_time, self._complete)
+
         # No longer watching for the tile to be occupied
-        self._tileEvent.cancel()
-        self._tileEvent = None
+        self.tile_event = None
 
         # Mob jumps to next tile
-        self.mob.position = self.destination_tile.coords
+        self.mob.tile = self.destination_tile
 
-        # Set timer for cooldown
-        self._timerEvent = self.timedEventDispatcher.add(self.cooldown_time, self._on_complete)
+        self.state = ActionState.COOL_DOWN
 
     def _on_tile_stolen(self, *args):
         """Callback for the destination tile becoming occupied before the mob can reach it"""
-        self._on_cancel()
+        self._cancel()
 
-    def _on_cancel(self):
-        if self._timerEvent is not None:
-            self._timerEvent.cancel()
-        if self._tileEvent is not None:
-            self._tileEvent.cancel()
+    def _cancel(self):
+        self.timer_event = None
+        self.tile_event = None
+        #self.mobSpeedEvent = None
 
-        self.mob.walk_animation = None
-
+        self.state = ActionState.COMPLETED
         self.notify(WalkToAdjacentTileAction.DONE, False)
 
-    def _on_complete(self):
-        self.mob.walk_animation = None
+    def _complete(self):
+        self.timer_event = None
+        self.tile_event = None
+        #self.mobSpeedEvent = None
+
+        self.state = ActionState.COMPLETED
         self.notify(WalkToAdjacentTileAction.DONE, True)
 
-class WalkDirective (Observable):
-    """Base class for WalkToDestinationDirective and PatrolDirective.
+def find_path(from_tile, to_tile):
+    """Braindead pathfinder which picks the most direct route
 
-    A directive is a higher-level command to a mob. In this case, a WalkDirective
-    causes a mob to make a series of `WalkToAdjacentTileAction`s to achieve the
-    goal of reaching a destination tile (as in the case of WalkToDestinationDirective)
-    or walking a set path (as in the case of PatrolDirective)
+    :param from_tile: The starting tile
+    :param to_tile: The goal tile
+    :return: An adjacent or diagonal tile to navigate to first
     """
+    assert from_tile.zone is to_tile.zone, \
+        'Tiles are in different zones'
 
-    @EventType
-    def DONE(success):
-        """The directive has completed
-        :param success: Whether the mob reached its destination
-        """
+    from_coord = from_tile.coords
+    to_coord = to_tile.coords
 
-    def __init__(self, mob, timed_event_dispatcher):
-        super(WalkDirective, self).__init__(set([
-            WalkDirective.DONE
-        ]))
+    #direction = sign(vec_subtract(to_coord, from_coord))
+    direction = (sign(to_coord[0] - from_coord[0]), 0) \
+                if to_coord[0] != from_coord[0] else \
+                (0, sign(to_coord[1] - from_coord[1]))
+
+    return from_tile.get_relative_tile(direction)
+
+class WalkToAdjacentTileDirective(object):
+    def __init__(self, mob, direction):
+        assert is_adjacent_vector(direction)
+
+        # May be None if @ edge of zone
+        self.mob = mob
+        self.destination = mob.tile.get_relative_tile(direction)
+    def __iter__(self):
+        return self
+    def next(self):
+        if self.mob.tile is self.destination or self.destination is None:
+            raise StopIteration()
+        else:
+            return self.destination
+
+class WalkToDestinationDirective(object):
+    """Iterator which navigates a mob to a given point"""
+    def __init__(self, mob, destination):
+        assert mob.tile.zone is destination.zone, \
+            'Can only walk between tiles on the same map'
 
         self.mob = mob
-        self.timed_event_dispatcher = timed_event_dispatcher
-        self.action = None
-
-        # Claim the mob for the duration of the directive
-        self.mob.walk_directive = self
-        self.observe(WalkDirective.DONE, self._on_done, limit=1)
-
-    def walk(self, direction, on_walk_done):
-        assert (direction[0] == 0 and (direction[1] == 1 or direction[1] == -1)) or \
-               (direction[1] == 0 and (direction[0] == 1 or direction[0] == -1)), \
-            'Mobs can only walk to adjacent tiles'
-
-        distance = 1 if direction[0] == 0 or direction[1] == 0 \
-            else 1.5
-        warmup_time = distance / (2.0 * self.mob.speed)
-        cooldown_time = distance / (2.0 * self.mob.speed)
-        destination = self.mob.zone.tiles[self.mob.position + direction]
-
-        action = WalkToAdjacentTileAction(
-            mob=self.mob,
-            destination_tile=destination,
-            timedEventDispatcher=self.timed_event_dispatcher,
-            warmup_time=warmup_time,
-            cooldown_time=cooldown_time
-        )
-        action.observe(WalkToAdjacentTileAction.DONE, on_walk_done, limit=1)
-        action.start()
-
-    def cancel(self):
-        self.action.cancel()
-
-    def _on_done(self, success):
-        # Release the claim on the mob
-        if self.mob.walk_directive == self:
-            self.mob.walk_directive = None
-
-class WalkToDestinationDirective (WalkDirective):
-    """Navigates a mob to the destination tile in the straightest line"""
-
-    def __init__(self, mob, timed_event_dispatcher, destination):
-        super(WalkToDestinationDirective, self).\
-            __init__(mob, timed_event_dispatcher)
-
         self.destination = destination
-
-    def start(self):
-        self._on_walk_action_done()
-
-    def _on_walk_action_done(self, success=None):
-        if (self.mob.position == self.destination).all():
-            self.notify(WalkDirective.DONE, True)
+    def __iter__(self):
+        return self
+    def next(self):
+        if self.mob.tile is self.destination:
+            raise StopIteration()
         else:
-            #TODO: enable when diagonal movement is supported
-            #direction = numpy.sign(self.destination - self.mob.position)
-            direction = (numpy.sign(self.destination[0] - self.mob.position[0]), 0) \
-                        if self.destination[0] != self.mob.position[0] else \
-                        (0, numpy.sign(self.destination[1] - self.mob.position[1]))
-            self.walk(direction, self._on_walk_action_done)
+            return find_path(self.mob.tile, self.destination)
 
-class PatrolDirective (WalkDirective):
-    """Navigates a mob between a list of points indefinitely"""
-
-    def __init__(self, mob, timed_event_dispatcher, destination_list):
-        super(PatrolDirective, self).\
-            __init__(mob, timed_event_dispatcher)
-
+class PatrolDestinationsDirective(object):
+    """Iterator which navigates a mob between a cycle of points"""
+    def __init__(self, mob, destination_list):
+        assert all_true([
+                mob.tile.zone is tile.zone
+                for tile in destination_list
+            ]), \
+            'Can only walk between tiles on the same map'
         assert len(removeAdjacentDuplicates(destination_list)) > 0, \
             'More than one unique destination is required'
 
+        self.mob = mob
         self.destination_list = destination_list
-        self.destination_iter = itertools.cycle(destination_list)
-        self.current_destination = self.destination_iter.next()
-
-    def start(self):
-        self._on_walk_action_done()
-
-    def _on_walk_action_done(self, success=None):
-        while (self.mob.position == self.current_destination).all():
+        self.destination_iter = itertools.cycle(self.destination_list)
+        self.current_destination = self.mob.tile
+    def __iter__(self):
+        return self
+    def next(self):
+        if self.mob.tile is self.current_destination:
             self.current_destination = self.destination_iter.next()
-
-        #TODO: enable when diagonal movement is supported
-        #direction = numpy.sign(self.destination - self.mob.position)
-        direction = (numpy.sign(self.current_destination[0] - self.mob.position[0]), 0) \
-                    if self.current_destination[0] != self.mob.position[0] else \
-                    (0, numpy.sign(self.current_destination[1] - self.mob.position[1]))
-        self.walk(direction, self._on_walk_action_done)
+        return find_path(self.mob.tile, self.current_destination)

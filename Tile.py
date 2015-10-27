@@ -1,20 +1,20 @@
 from Observable import Observable, EventType
+from util import *
 
 class Tile (Observable):
     """A square region of map which can hold one occupant."""
 
     @EventType
-    def OCCUPY(tile, occupant):
+    def OCCUPY(tile):
         """The tile became occupied
         :param tile: The tile in question, i.e. Self
-        :param occupant: The mob that now occupies the tile
         """
 
     @EventType
-    def VACATE(tile, occupant):
+    def VACATE(tile, mob):
         """The tile became unoccupied
         :param tile: The tile in question, i.e. Self
-        :param occupant: The mob that vacated the tile
+        :param mob: The mob that vacated the tile
         """
 
     class OwnershipException (Exception):
@@ -41,22 +41,34 @@ class Tile (Observable):
            to another occupant.
         :return:
         """
-        if self._occupant:
+
+        # No change (None -> None or Mob -> same Mob)
+        if self._occupant is occupant:
+            pass
+        # Tile previously occupied
+        elif self._occupant:
+            # Attempting to invade tile (Mob -> different Mob)
             if occupant:
                 raise Tile.OwnershipException(self._occupant, occupant)
+            # Vacating tile (Mob -> None)
             else:
-                self._occupant = occupant
-                self.notify(Tile.VACATE, self, self._occupant)
+                previous, self._occupant = self._occupant, None
+                self.notify(Tile.VACATE, self, previous)
+        # Claiming tile (None -> Mob)
         else:
-            if occupant:
-                self._occupant = occupant
-                self.notify(Tile.OCCUPY, self, occupant)
-            else:
-                pass
+            self._occupant = occupant
+            self.notify(Tile.OCCUPY, self)
 
     @property
     def coords(self):
         return self._coords
+
+    def get_relative_tile(self, rel_coords):
+        abs_coords = vec_add(self.coords, rel_coords)
+        if abs_coords in self.zone.tiles:
+            return self.zone.tiles[abs_coords]
+        else:
+            return None
 
     def __repr__(self):
         return 'Tile(coords={}, occupant={}, ...)'.format(self.coords, self.occupant)

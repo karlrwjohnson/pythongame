@@ -4,11 +4,8 @@ from GameClock import GameClock
 from Mob import Mob
 from Observable import Observable, \
     EventType
-from TimedEventDispatcher import TimedEventDispatcher
+from Tile import Tile
 from UIController import UIController
-from walking import \
-    PatrolDirective, \
-    WalkToDestinationDirective
 
 class ZoneController (Observable):
 
@@ -36,34 +33,20 @@ class ZoneController (Observable):
         :param dt: Amount of time to advance by
         """
 
-    def __init__(self, ui_controller, model, view):
+    def __init__(self, ui_controller, zone, view, pc):
         super(ZoneController, self).__init__()
 
+        # Private variables
         self._ui_controller = None
-        self.model = model
-        self.view = view
-
         self._ui_controller_event_handles = []
 
+        # Public variables
+        self.zone = zone
+        self.view = view
+        self.pc = pc
+
+        # Public setters
         self.ui_controller = ui_controller
-
-        self.timed_event_dispatcher = TimedEventDispatcher()
-
-        ################################################
-        # Should this stuff really be here?
-        grass_sprite = pygame.image.load('img/tile.png')
-        for tile in model.tiles:
-            tile.sprite = grass_sprite
-
-        stick_fig_sprite = pygame.image.load('img/stickfig.png')
-        self.pc = Mob(zone=self.model, position=(4, 2), sprite=stick_fig_sprite)
-
-        guard = Mob(zone=self.model, position=(5, 2), sprite=stick_fig_sprite)
-        PatrolDirective(
-            mob=guard,
-            destination_list=[(5,5), (15,5), (10,10), (5,10)],
-            timed_event_dispatcher=self.timed_event_dispatcher
-        ).start()
 
     @property
     def ui_controller(self):
@@ -89,41 +72,25 @@ class ZoneController (Observable):
             ]
 
     def _on_game_time_advance(self, dt):
-        self.timed_event_dispatcher.advanceBy(dt)
-
-    def _notify_tile_mouse_event(self, coord, event_type):
-        tile_coord = self.view.screen_2_tile_coord(coord)
-
-        if tile_coord in self.model.tiles:
-            tile = self.model.tiles[tile_coord]
-            self.notify(event_type, tile)
+        self.zone.timed_event_dispatcher.advanceBy(dt)
 
     def _on_primary_click(self, coord):
-        self._notify_tile_mouse_event(event_type=ZoneController.CLICK_TILE,
-                                      coord=coord)
+        thing = self.view.what_is_at(coord)
+        if isinstance(thing, Tile):
+            self.notify(event_type=ZoneController.CLICK_TILE, coord=coord)
 
     def _on_zone_hover(self, coord):
-        self._notify_tile_mouse_event(event_type=ZoneController.HOVER_TILE,
-                                      coord=coord)
+        thing = self.view.what_is_at(coord)
+        if isinstance(thing, Tile):
+            self.notify(event_type=ZoneController.HOVER_TILE, coord=coord)
 
     def _on_secondary_click(self, coord, button):
         #TODO this is how we click on characters and entities
         pass
 
     def _on_move(self, direction):
-        if self.pc.walk_directive is None:
-            destination = map(lambda (a, b): a + b, zip(self.pc.position, direction))
-            WalkToDestinationDirective(
-                mob=self.pc,
-                destination=destination,
-                timed_event_dispatcher=self.timed_event_dispatcher
-            ).start()
+        self.pc.walk(direction)
 
     def _on_click_tile(self, coord):
-        if self.pc.walk_directive is None:
-            WalkToDestinationDirective(
-                mob=self.pc,
-                destination=coord,
-                timed_event_dispatcher=self.timed_event_dispatcher
-            ).start()
-
+        dest_tile = self.zone.tiles[coord]
+        self.pc.walk_to(dest_tile)

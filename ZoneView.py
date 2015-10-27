@@ -1,19 +1,18 @@
 import numpy
 import pygame
 
-from MobView import MobView
 from UIView import UIView
 
 class ZoneView (object):
     """Renders a zone and everything in it."""
 
-    def __init__(self, model, ui_view, spriteSize=(32, 32)):
-        self._model = None
+    def __init__(self, zone, ui_view, spriteSize=(32, 32)):
+        self._zone = None
         self._ui_view = None
 
         self._ui_view_event_handles = []
 
-        self.model = model
+        self.zone = zone
         self.ui_view = ui_view
 
         # Using numpy lets us do math with vectors for cleaner syntax
@@ -26,12 +25,12 @@ class ZoneView (object):
         self.tile_hover_sprite = pygame.image.load('img/hilight.png')
 
     @property
-    def model(self):
-        return self._model
+    def zone(self):
+        return self._zone
 
-    @model.setter
-    def model(self, model):
-        self._model = model
+    @zone.setter
+    def zone(self, zone):
+        self._zone = zone
 
     @property
     def ui_view(self):
@@ -63,16 +62,23 @@ class ZoneView (object):
     def blit_world_sprite(self, sprite, tileCoord):
         self.ui_view.screen.blit(sprite, tileCoord * self.spriteSize - self.viewOffsetPx)
 
+    def what_is_at(self, screen_coord):
+        tile_coord = self.screen_2_tile_coord(screen_coord)
+
+        if tile_coord in self.zone.tiles:
+            return self.zone.tiles[tile_coord]
+        else:
+            return None
+
     def screen_2_tile_coord(self, screenCoord):
         return (screenCoord - self.viewOffsetPx) / self.spriteSize
 
     def _on_render(self):
-        for tile in self.model.tiles:
+        for tile in self.zone.tiles:
             self.blit_world_sprite(tile.sprite, tile.coords)
 
-        mob_view = MobView()
-        for mob in self.model.mobs:
-            mob_view.render(self, mob)
+        for mob in self.zone.mobs:
+            self.blit_world_sprite(mob.sprite, mob.position)
 
         if self.mouse_pos is not None:
             self.blit_world_sprite(self.tile_hover_sprite, self.screen_2_tile_coord(self.mouse_pos))

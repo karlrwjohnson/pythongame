@@ -1,4 +1,5 @@
 from Tile import Tile
+from TimedEventDispatcher import TimedEventDispatcher
 
 class Zone (object):
     """
@@ -58,27 +59,22 @@ class Zone (object):
                 for tile in row:
                     yield tile
 
-    # class MobsDelegate (object):
-    #     def __init__(self, zone):
-    #         self._zone = zone
-    #
-    #     def add(self, mob):
-    #         self._zone._mobs.add(mob)
-
     def __init__(self, dimensions):
 
         self._dimensions = dimensions
         self._tileDelegate = Zone.TilesDelegate(self)
-        #self._mobsDelegate = Zone.MobsDelegate(self)
-        self.mobs = set()
+        self._mob_tiles = dict()
 
         self._tiles = [
             [Tile(zone=self, coords=(x,y)) for x in range(dimensions[0])]
             for y in range(dimensions[1])
         ]
-        # self._mobs = set()
 
-        self.directives = set()
+        self.timed_event_dispatcher = TimedEventDispatcher()
+
+        for tile in self.tiles:
+            tile.observe(Tile.OCCUPY, self._on_tile_occupy)
+            tile.observe(Tile.VACATE, self._on_tile_vacate)
 
     @property
     def tiles(self):
@@ -87,6 +83,22 @@ class Zone (object):
     @property
     def dimensions(self):
         return self._dimensions
+
+    @property
+    def mobs(self):
+        return self._mob_tiles.keys()
+
+    def _on_tile_occupy(self, tile):
+        mob = tile.occupant
+        if mob in self._mob_tiles:
+            self._mob_tiles[mob].add(tile)
+        else:
+            self._mob_tiles[mob] = set([tile])
+
+    def _on_tile_vacate(self, tile, mob):
+        self._mob_tiles[mob].remove(tile)
+        if len(self._mob_tiles[mob]) == 0:
+            del self._mob_tiles[mob]
 
     # @property
     # def mobs(self):
