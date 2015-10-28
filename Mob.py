@@ -103,7 +103,7 @@ class Mob (Observable):
             else:
                 if self._walk_action is None:
                     self._on_walk_action_done()
-                elif next_tile is self._walk_action.destination_tile:
+                elif next_tile is self._walk_action.dest_tile:
                     # Let it happen
                     pass
                 else:
@@ -123,13 +123,13 @@ class Mob (Observable):
         """Navigate to an arbitrary tile on the map
         :param tile: Tile to move to
         """
-        self.walk_directive = WalkToDestinationDirective(mob=self, destination=tile)
+        self.walk_directive = WalkToDestinationDirective(mob=self, tile=tile)
     
     def patrol(self, tile_list):
         """Patrol a circuit of tiles ad infinitum
         :param tile_list: List of tiles to patrol
         """
-        self.walk_directive = PatrolDestinationsDirective(mob=self, destination_list=tile_list)
+        self.walk_directive = PatrolDestinationsDirective(mob=self, tile_list=tile_list)
 
     # Handlers
 
@@ -145,9 +145,10 @@ class Mob (Observable):
                 self.walk_directive = None
                 self.notify(Mob.STOP_MOVING, self)
             else:
-                self._walk_action = WalkToAdjacentTileAction(self,
-                                                             next_tile,
-                                                             self.tile.zone.timed_event_dispatcher)
+                self._walk_action = WalkToAdjacentTileAction(
+                    mob=self,
+                    dest_tile=next_tile,
+                    timed_event_dispatcher=self.tile.zone.timed_event_dispatcher)
                 self._walk_action.observe(WalkToAdjacentTileAction.DONE,
                                           self._on_walk_action_done,
                                           limit=1)
