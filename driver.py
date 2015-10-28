@@ -47,11 +47,30 @@ for tile in zone.tiles:
 stick_fig_sprite = pygame.image.load('img/stickfig.png')
 pc = Mob(tile=zone.tiles[(4, 2)], sprite=stick_fig_sprite)
 
-guard = Mob(tile=zone.tiles[(5, 2)], sprite=stick_fig_sprite)
+guard = Mob(tile=zone.tiles[(5, 4)], sprite=stick_fig_sprite)
 guard.patrol([
     zone.tiles[coord]
     for coord in [(5,5), (15,5), (10,10), (5,10)]
 ])
+
+def tiles_box(x_bounds, y_bounds):
+    return [
+        zone.tiles[(x, y)]
+        for x in ([x_bounds] if type(x_bounds) is int else range(x_bounds[0], x_bounds[1] + 1))
+        for y in ([y_bounds] if type(y_bounds) is int else range(y_bounds[0], y_bounds[1] + 1))
+    ]
+
+wall_sprite = pygame.image.load('img/wall.png')
+(wid, hgt) = zone.dimensions
+wall_tiles = tiles_box((0, wid-1), 0) + \
+             tiles_box((0, wid-1), hgt - 1) + \
+             tiles_box(0, (1, hgt - 2)) + \
+             tiles_box(wid - 1, (1, hgt - 2)) + \
+             tiles_box((6, 9), (6, 9)) + \
+             tiles_box(4, (6, 9)) + \
+             tiles_box((3, 5), 3)
+for tile in wall_tiles:
+    Mob(tile=tile, sprite=wall_sprite)
 
 # View
 ui_view = UIView(size=ARGS.screen_size, caption=WINDOW_CAPTION)

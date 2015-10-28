@@ -21,3 +21,22 @@ Lifecycle of maps
 - Maps get loaded by unpickling them. To save map state, we could re-pickle them
   and write them back out after de-spawning the PC. Maybe maps should have some
   sort of cleanup logic function.
+
+To Do
+-----
+
+- Implement ui chrome
+- UIView should be able to tell what's UI chrome and what isn't
+- Player mob might need to be attached to the model, not the controller
+- Map needs spawn points
+- Combat
+- Diagonal movement
+- Real pathfinding
+- Obstacles
+- Line-of-sight
+- Fog of war ("seen" flag on tiles?)
+- Pausable time
+- Mechanism to auto-pause time when PC is done doing something?
+- Fix bug where arrow keys send mob one tile past where they intend
+- Either use the backported enums, or make your own
+- Sprite library and figure out how to keep them from being serialized. (string key?)
