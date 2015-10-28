@@ -1,7 +1,6 @@
 import pygame
 
 from GameClock import GameClock
-from Mob import Mob
 from Observable import Observable, \
     EventType
 from Tile import Tile
@@ -48,6 +47,8 @@ class ZoneController (Observable):
         # Public setters
         self.ui_controller = ui_controller
 
+        self.observe(ZoneController.CLICK_TILE, self._on_click_tile)
+
     @property
     def ui_controller(self):
         return self._ui_controller
@@ -77,12 +78,13 @@ class ZoneController (Observable):
     def _on_primary_click(self, coord):
         thing = self.view.what_is_at(coord)
         if isinstance(thing, Tile):
-            self.notify(event_type=ZoneController.CLICK_TILE, coord=coord)
+            self.notify(event_type=ZoneController.CLICK_TILE, tile=thing)
 
     def _on_zone_hover(self, coord):
         thing = self.view.what_is_at(coord)
         if isinstance(thing, Tile):
-            self.notify(event_type=ZoneController.HOVER_TILE, coord=coord)
+            self.view.hover_tile = thing
+            self.notify(event_type=ZoneController.HOVER_TILE, tile=thing)
 
     def _on_secondary_click(self, coord, button):
         #TODO this is how we click on characters and entities
@@ -91,6 +93,5 @@ class ZoneController (Observable):
     def _on_move(self, direction):
         self.pc.walk(direction)
 
-    def _on_click_tile(self, coord):
-        dest_tile = self.zone.tiles[coord]
-        self.pc.walk_to(dest_tile)
+    def _on_click_tile(self, tile):
+        self.pc.walk_to(tile)

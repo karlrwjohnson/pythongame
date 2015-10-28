@@ -9,7 +9,6 @@ from UIEventDispatchers import \
     KeyPressEventDispatcher, \
     MouseEventDispatcher, \
     PygameEventDispatcher
-from util import logging_passthru
 
 class UIController (Observable):
     """
@@ -62,6 +61,7 @@ class UIController (Observable):
             (pygame.locals.KEYDOWN, pygame.locals.K_q),
             self._on_quit)
         self.mouseEventDispatcher.observe(MouseEventDispatcher.CLICK, self._on_click)
+        self.mouseEventDispatcher.observe(MouseEventDispatcher.MOVE, self._on_move)
 
         self.keyPressEventDispatcher.observe(
             (pygame.locals.KEYDOWN, pygame.locals.K_SPACE),
@@ -102,3 +102,6 @@ class UIController (Observable):
             self.notify(UIController.PRIMARY_CLICK, coord)
         elif button == 2:
             self.notify(UIController.SECONDARY_CLICK, coord)
+
+    def _on_move(self, pos, rel, buttons):
+        self.notify(UIController.ZONE_HOVER, pos)

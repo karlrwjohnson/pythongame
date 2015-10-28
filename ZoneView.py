@@ -21,7 +21,7 @@ class ZoneView (object):
 
         self._tileClickHandlers = set()
 
-        self.mouse_pos = None
+        self.hover_tile = None
         self.tile_hover_sprite = pygame.image.load('img/hilight.png')
 
     @property
@@ -80,5 +80,5 @@ class ZoneView (object):
         for mob in self.zone.mobs:
             self.blit_world_sprite(mob.sprite, mob.position)
 
-        if self.mouse_pos is not None:
-            self.blit_world_sprite(self.tile_hover_sprite, self.screen_2_tile_coord(self.mouse_pos))
+        if self.hover_tile is not None:
+            self.blit_world_sprite(self.tile_hover_sprite, self.hover_tile.coords)
