@@ -3,11 +3,11 @@ import re
 
 from Observable import Observable, EventType
 
-PYGAME_KEY_CODES = set([
+PYGAME_KEY_CODES = {
     pygame.locals.__dict__[key_name]
     for key_name in dir(pygame.locals)
     if re.match(r'^K_', key_name)
-])
+}
 
 class PygameEventDispatcher (Observable):
     """ Processes pygame events """
@@ -32,7 +32,7 @@ class PygameEventDispatcher (Observable):
             VIDEOEXPOSE      none
             USEREVENT        code
         """
-        super(PygameEventDispatcher, self).__init__([
+        super(PygameEventDispatcher, self).__init__({
             pygame.locals.QUIT,
             pygame.locals.ACTIVEEVENT,
             pygame.locals.KEYDOWN,
@@ -48,7 +48,7 @@ class PygameEventDispatcher (Observable):
             pygame.locals.VIDEORESIZE,
             pygame.locals.VIDEOEXPOSE,
             pygame.locals.USEREVENT,
-        ])
+        })
 
     def handleEvents(self, events):
         for event in events:
@@ -59,13 +59,11 @@ class KeyPressEventDispatcher (Observable):
 
     # Event types are tuples of the key direction and the key code.
     # :param event: Pygame event
-    EVENT_TYPES = [
-        (pygame.locals.KEYDOWN, key_code)
+    EVENT_TYPES = {
+        (key_direction, key_code)
+        for key_direction in [pygame.locals.KEYDOWN, pygame.locals.KEYUP]
         for key_code in PYGAME_KEY_CODES
-    ] + [
-        (pygame.locals.KEYUP, key_code)
-        for key_code in PYGAME_KEY_CODES
-    ]
+    }
 
     def __init__(self, pygame_event_dispatcher=None):
         super(KeyPressEventDispatcher, self).\

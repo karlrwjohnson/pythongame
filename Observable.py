@@ -92,16 +92,21 @@ class Observable (object):
         """
         self._observer_handles = {}
 
-        self._supported_event_types = set(supported_event_types)
+        self._supported_event_types = supported_event_types \
+            if type(supported_event_types) == set \
+            else set(supported_event_types)
 
         if scan_for_event_types:
-            self._supported_event_types |= set([
-                attr_value
-                for clazz in [type(self)]
-                for attr_name in dir(clazz)
-                for attr_value in [getattr(clazz, attr_name)]
-                if isinstance(attr_value, EventType)
-            ])
+            self._supported_event_types |= _find_event_types(type(self)) 
+
+    @staticmethod
+    def _find_event_types(clazz):
+        return {
+            attr_value
+            for attr_name in dir(clazz)
+            for attr_value in [getattr(clazz, attr_name)]
+            if isinstance(attr_value, EventType)
+        }
 
     def observe(self, event_type, callback, limit=float('inf')):
         """Registers a callback

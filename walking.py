@@ -8,27 +8,24 @@ from Tile import Tile
 from util import *
 
 class ActionState(object):
-    def __init__(self, name, ordinal, is_cancelable):
+    def __init__(self, name, permitted_transitions=set()):
         self.name = name
-        self.ordinal = ordinal
-        self.is_cancelable = is_cancelable
-    def __cmp__(self, other):
-        if isinstance(other, ActionState):
-            return cmp(self.ordinal, other.ordinal)
-        else:
-            raise TypeError()
+        self.permitted_transitions = permitted_transitions
     def __repr__(self):
         return 'ActionState.{}'.format(self.name)
+    @property
+    def is_cancelable(self):
+        return ActionState.CANCEL in self.permitted_transitions
 
-ActionState.NOT_STARTED = ActionState('NOT_STARTED', 0, True)
-ActionState.WARM_UP = ActionState('WARM_UP', 1, True)
-ActionState.COOL_DOWN = ActionState('COOL_DOWN', 2, False)
-ActionState.CANCELED = ActionState('CANCELED', 3, True)
-ActionState.COMPLETED = ActionState('COMPLETED', 4, False)
+ActionState.COMPLETE = ActionState('COMPLETE')
+ActionState.CANCEL = ActionState('CANCEL')
+ActionState.COOL_DOWN = ActionState('COOL_DOWN', { ActionState.COMPLETE })
+ActionState.WARM_UP = ActionState('WARM_UP', { ActionState.COOL_DOWN, ActionState.CANCEL })
+ActionState.WARM_UP = ActionState('PRECOND_WAIT', { ActionState.WARM_UP, ActionState.CANCEL })
+ActionState.NOT_STARTED = ActionState('NOT_STARTED', { ActionState.PRECOND_WAIT, ActionState.WARM_UP, ActionState.CANCEL })
 
-class WalkToAdjacentTileAction (Observable):
+class Action (Observable):
     """
-
     An action is a discrete operation taken by a mob, such as walking or firing a weapon.
     Action are characterized by three phases:
     1. A warm-up period of time
@@ -40,11 +37,29 @@ class WalkToAdjacentTileAction (Observable):
     ownership of the old tile and takes ownership of the new.
     """
 
-    @EventType
-    def DONE(success):
-        """The action has completed
-        :param success: Whether the character now occupies the new tile
-        """
+    def __init__(self):
+        super(self, Action).__init__({
+            ActionState.NOT_STARTED,
+            ActionState.WARM_UP,
+            ActionState.COOL_DOWN,
+            ActionState.CANCEL,
+            ActionState.COMPLETE
+        })
+        self._state = ActionState.NOT_STARTED
+
+    @property
+    def state(self):
+        return self._state
+
+    @state.setter
+    def state(self, state):
+        if state in self.state.permitted_transitions:
+            self._state = state
+            self.notify(state, self)
+        else:
+            raise TypeError('Cannot transition from state {!r} to state {!r}'.format(self.state, state))
+
+class WalkToAdjacentTileAction (Observable):
 
     def __init__(self,
                  mob,
@@ -67,20 +82,24 @@ class WalkToAdjacentTileAction (Observable):
         self.cooldown_time = \
             distance(self.source_tile.coords, self.dest_tile.coords) / (2.0 * self.mob.speed)
 
-        self.state = ActionState.NOT_STARTED
-
         # Event references
         self._timer_event = None
         self._tile_event = None
+
+        self.observe(ActionState.WARM_UP, self._on_warm_up)
+        self.observe(ActionState.COOL_DOWN, self._on_cool_down)
+        self.observe(ActionState.CANCEL, self._on_cancel)
+        self.observe(ActionState.COMPLETE, self._on_complet)
 
         if self.dest_tile.occupant is None:
             self._on_tile_vacate()
         else:
             self.tile_event = self.dest_tile.observe(Tile.VACATE, self._on_tile_vacate, limit=1)
+            self.state = ActionState.PRECOND_WAIT
 
     def cancel(self):
         """Abort the current walk action"""
-        if self.state == ActionState.CANCELED:
+        if self.state == ActionState.CANCEL:
             # Cancellation is idempotent
             pass
         elif self.state.is_cancelable:
@@ -90,10 +109,11 @@ class WalkToAdjacentTileAction (Observable):
 
     _progress_by_state = {
         ActionState.NOT_STARTED: lambda self: 0.0,
-        ActionState.CANCELED: lambda self: 0.0,
+        ActionState.PRECOND_WAIT: lambda self: 0.0,
+        ActionState.CANCEL: lambda self: 0.0,
         ActionState.WARM_UP: lambda self: self.timer_event.progress / 2.0,
         ActionState.COOL_DOWN: lambda self: self.timer_event.progress / 2.0 + 0.5,
-        ActionState.COMPLETED: lambda self: 1.0,
+        ActionState.COMPLETE: lambda self: 1.0,
     }
 
     @property
@@ -132,18 +152,26 @@ class WalkToAdjacentTileAction (Observable):
         # I should probably just cancel the current one and re-issue it.
 
     def _on_tile_vacate(self, *args):
-        self.timer_event = self.timed_event_dispatcher.add(self.warmup_time, self._on_warmup_done)
-        self.tile_event = self.dest_tile.observe(Tile.OCCUPY, self._on_tile_stolen, limit=1)
-        #self._mobSpeedEvent = self.mob.observe(Mob.SPEED_CHANGE, self._on_mob_speed_change)
         self.state = ActionState.WARM_UP
+
+    def _on_warm_up(self, *args):
+        self.tile_event = self.dest_tile.observe(Tile.OCCUPY, self._on_tile_stolen, limit=1)
+        self.timer_event = self.timed_event_dispatcher.add(self.warmup_time, self._on_warmup_done)
+        #self._mobSpeedEvent = self.mob.observe(Mob.SPEED_CHANGE, self._on_mob_speed_change)
+
+    def _on_tile_stolen(self, *args):
+        """Callback for the destination tile becoming occupied before the mob can reach it"""
+        self.state = ActionState.CANCEL
+
+    def _on_cancel(self):
+        self.timer_event = None
+        self.tile_event = None
+        #self.mobSpeedEvent = None
 
     def _on_warmup_done(self):
         """Callback for the warmup event's completion"""
         assert self.dest_tile.occupant is None, \
             "Target tile is occupied, but I didn't get a Tile.OCCUPY event"
-
-        # Set timer for cooldown
-        self._timer_event = self.timed_event_dispatcher.add(self.cooldown_time, self._complete)
 
         # No longer watching for the tile to be occupied
         self.tile_event = None
@@ -153,25 +181,18 @@ class WalkToAdjacentTileAction (Observable):
 
         self.state = ActionState.COOL_DOWN
 
-    def _on_tile_stolen(self, *args):
-        """Callback for the destination tile becoming occupied before the mob can reach it"""
-        self._cancel()
+    def _on_cool_down(self, *args):
+        self.timer_event = self.timed_event_dispatcher.add(self.cooldown_time, self._on_cooldown_done)
 
-    def _cancel(self):
+    def _on_cooldown_done(self, *args):
+        self.state = ActionState.COMPLETE
+
+    def _on_complete(self):
         self.timer_event = None
         self.tile_event = None
         #self.mobSpeedEvent = None
 
-        self.state = ActionState.CANCELED
-        self.notify(WalkToAdjacentTileAction.DONE, False)
-
-    def _complete(self):
-        self.timer_event = None
-        self.tile_event = None
-        #self.mobSpeedEvent = None
-
-        self.state = ActionState.COMPLETED
-        self.notify(WalkToAdjacentTileAction.DONE, True)
+        self.state = ActionState.COMPLETE
 
 def find_path(from_tile, to_tile):
     """Braindead pathfinder which picks the most direct route

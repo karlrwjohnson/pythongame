@@ -93,7 +93,7 @@ class Zone (object):
         if mob in self._mob_tiles:
             self._mob_tiles[mob].add(tile)
         else:
-            self._mob_tiles[mob] = set([tile])
+            self._mob_tiles[mob] = {tile}
 
     def _on_tile_vacate(self, tile, mob):
         self._mob_tiles[mob].remove(tile)
